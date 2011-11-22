@@ -696,7 +696,7 @@ int serve(stlink_t *sl, int port) {
 	hints.ai_flags = AI_PASSIVE;
 
 	/* Resolve the server address and port */
-	int port_str_size = snprintf(0, 0, "%i", port);
+	int port_str_size = snprintf(0, 0, "%i", port) + 1;
 	char port_str[port_str_size];
 	snprintf(port_str, port_str_size, "%i", port);
 
