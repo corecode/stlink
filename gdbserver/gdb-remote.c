@@ -11,7 +11,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <sys/poll.h>
+
+#if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
+  #include <windows.h>
+  #include <winsock2.h>
+  #include <ws2tcpip.h>
+#else
+  #include <sys/socket.h>
+  #include <sys/select.h>
+#endif
 
 static const char hex[] = "0123456789abcdef";
 
@@ -34,13 +42,13 @@ int gdb_send_packet(int fd, char* data) {
 	packet[length - 2] = hex[cksum & 0xf];
 
 	while(1) {
-		if(write(fd, packet, length) != length) {
+		if(send(fd, packet, length, 0) != length) {
 			free(packet);
 			return -2;
 		}
 
 		char ack;
-		if(read(fd, &ack, 1) != 1) {
+		if(recv(fd, &ack, 1, 0) != 1) {
 			free(packet);
 			return -2;
 		}
@@ -73,7 +81,7 @@ start:
 
 	char c;
 	while(state != 4) {
-		if(read(fd, &c, 1) != 1) {
+		if(recv(fd, &c, 1, 0) != 1) {
 			return -2;
 		}
 
@@ -115,14 +123,14 @@ start:
 	uint8_t recv_cksum_int = strtoul(recv_cksum, NULL, 16);
 	if(recv_cksum_int != cksum) {
 		char nack = '-';
-		if(write(fd, &nack, 1) != 1) {
+		if(send(fd, &nack, 1, 0) != 1) {
 			return -2;
 		}
 
 		goto start;
 	} else {
 		char ack = '+';
-		if(write(fd, &ack, 1) != 1) {
+		if(send(fd, &ack, 1, 0) != 1) {
 			return -2;
 		}
 	}
@@ -137,14 +145,19 @@ start:
 // As we use the mode with ACK, in a (very unlikely) situation of a packet
 // lost because of this skipping, it will be resent anyway.
 int gdb_check_for_interrupt(int fd) {
-	struct pollfd pfd;
-	pfd.fd = fd;
-	pfd.events = POLLIN;
+	struct timeval tv;
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
 
-	if(poll(&pfd, 1, 0) != 0) {
+	fd_set rfds;
+	FD_ZERO(&rfds);
+	FD_SET(fd, &rfds);
+	int retval = select(1, &rfds, NULL, NULL, &tv);
+	FD_CLR(fd, &rfds);
+
+	if (retval > 0) {
 		char c;
-
-		if(read(fd, &c, 1) != 1)
+		if (recv(fd, &c, 1, 0) != 1)
 			return -2;
 
 		if(c == '\x03') // ^C
@@ -153,4 +166,3 @@ int gdb_check_for_interrupt(int fd) {
 
 	return 0;
 }
-

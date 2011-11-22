@@ -9,8 +9,10 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
 
+#if !defined(CONFIG_WIN32) || (CONFIG_WIN32 +1 <= 1)
+  #include <sys/mman.h>
+#endif
 
 #include "stlink-common.h"
 #include "uglylogging.h"
@@ -417,10 +419,10 @@ void stlink_cpu_id(stlink_t *sl, cortex_m3_cpuid_t *cpuid) {
 int stlink_load_device_params(stlink_t *sl) {
     ILOG("Loading device parameters....\n");
     const chip_params_t *params = NULL;
-    
+
     sl->core_id = stlink_core_id(sl);
     uint32_t chip_id = stlink_chip_id(sl);
-    
+
     /* Fix chip_id for F4 rev A errata */
     if (((chip_id & 0xFFF) == 0x411) && (sl->core_id == CORE_M4_R0)) {
       chip_id = 0x413;
@@ -437,11 +439,11 @@ int stlink_load_device_params(stlink_t *sl) {
         WLOG("unknown chip id! %#x\n", chip_id);
         return -1;
     }
-    
+
     // These are fixed...
     sl->flash_base = STM32_FLASH_BASE;
     sl->sram_base = STM32_SRAM_BASE;
-    
+
     // read flash size from hardware, if possible...
     if ((chip_id & 0xFFF) == STM32_CHIPID_F2) {
         sl->flash_size = 0; // FIXME - need to work this out some other way, just set to max possible?
@@ -456,11 +458,11 @@ int stlink_load_device_params(stlink_t *sl) {
     sl->sram_size = params->sram_size;
     sl->sys_base = params->bootrom_base;
     sl->sys_size = params->bootrom_size;
-    
+
     ILOG("Device connected is: %s\n", params->description);
     // TODO make note of variable page size here.....
     ILOG("SRAM size: %#x bytes (%d KiB), Flash: %#x bytes (%d KiB) in pages of %zd bytes\n",
-        sl->sram_size, sl->sram_size / 1024, sl->flash_size, sl->flash_size / 1024, 
+        sl->sram_size, sl->sram_size / 1024, sl->flash_size, sl->flash_size / 1024,
         sl->flash_pgsz);
     return 0;
 }
@@ -510,7 +512,7 @@ void stlink_version(stlink_t *sl) {
     DLOG("*** looking up stlink version\n");
     sl->backend->version(sl);
     _parse_version(sl, &sl->version);
-    
+
     DLOG("st vid         = 0x%04x (expect 0x%04x)\n", sl->version.st_vid, USB_ST_VID);
     DLOG("stlink pid     = 0x%04x\n", sl->version.stlink_pid);
     DLOG("stlink version = 0x%x\n", sl->version.stlink_v);
@@ -701,11 +703,25 @@ static int map_file(mapped_file_t* mf, const char* path) {
         goto on_error;
     }
 
+#if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
+    mf->base = malloc(st.st_size);
+    if (mf->base == NULL) {
+        fprintf(stderr, "malloc() == NULL\n");
+        goto on_error;
+    }
+
+    ssize_t read_result = read(fd, mf->base, st.st_size);
+    if (read_result < st.st_size) {
+        fprintf(stderr, "read() < st.st_size\n");
+        goto on_error;
+    }
+#else
     mf->base = (uint8_t*) mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
     if (mf->base == MAP_FAILED) {
         fprintf(stderr, "mmap() == MAP_FAILED\n");
         goto on_error;
     }
+#endif
 
     mf->len = st.st_size;
 
@@ -719,8 +735,14 @@ on_error:
 }
 
 static void unmap_file(mapped_file_t * mf) {
+#if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
+    free(mf->base);
+    mf->base = NULL;
+#else
     munmap((void*) mf->base, mf->len);
     mf->base = (unsigned char*) MAP_FAILED;
+#endif
+
     mf->len = 0;
 }
 
@@ -1242,7 +1264,7 @@ int stlink_write_flash(stlink_t *sl, stm32_addr_t addr, uint8_t* base, unsigned 
         }
         page_count++;
     }
-    ILOG("Finished erasing %d pages of %d (%#x) bytes\n", 
+    ILOG("Finished erasing %d pages of %d (%#x) bytes\n",
         page_count, sl->flash_pgsz, sl->flash_pgsz);
 
     if (sl->chip_id == STM32_CHIPID_F4) {
@@ -1427,7 +1449,7 @@ int stlink_write_flash(stlink_t *sl, stm32_addr_t addr, uint8_t* base, unsigned 
         WLOG("unknown coreid, not sure how to write: %x\n", sl->core_id);
         return -1;
     }
-    
+
     return stlink_verify_write_flash(sl, addr, base, len);
 }
 

@@ -85,7 +85,6 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
 
 #include "stlink-common.h"
 #include "stlink-sg.h"

@@ -87,7 +87,12 @@ int submit_wait(struct stlink_libusb *slu, struct libusb_transfer * trans) {
         }
 
         gettimeofday(&now, NULL);
+    #if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
+        now.tv_sec = diff.tv_sec - start.tv_sec;
+        now.tv_usec = diff.tv_usec - start.tv_usec;
+    #else
         timersub(&now, &start, &diff);
+    #endif
         if (diff.tv_sec >= 3) {
             printf("libusb_handle_events() timeout\n");
             return -1;
@@ -121,14 +126,14 @@ ssize_t send_recv(struct stlink_libusb* handle, int terminate,
     if (rxsize != 0) {
 
         /* read the response */
-        
+
         libusb_fill_bulk_transfer(handle->rep_trans, handle->usb_handle,
                                   handle->ep_rep, rxbuf, rxsize, NULL, NULL, 0);
-        
+
         if (submit_wait(handle, handle->rep_trans)) return -1;
         res = handle->rep_trans->actual_length;
     }
-    
+
     if ((handle->protocoll == 1) && terminate) {
         fprintf(stderr, "This is never used....\n");
         exit(EXIT_FAILURE);
@@ -229,7 +234,7 @@ int _stlink_usb_current_mode(stlink_t * sl) {
     ssize_t size;
     int rep_len = 2;
     int i = fill_command(sl, SG_DXFER_FROM_DEV, rep_len);
-    
+
     cmd[i++] = STLINK_GET_CURRENT_MODE;
     size = send_recv(slu, 1, cmd,  slu->cmd_len, data, rep_len);
     if (size == -1) {
@@ -485,7 +490,7 @@ void _stlink_usb_read_reg(stlink_t *sl, int r_idx, reg *regp) {
     stlink_print_data(sl);
     r = read_uint32(sl->q_buf, 0);
     DLOG("r_idx (%2d) = 0x%08x\n", r_idx, r);
-    
+
     switch (r_idx) {
     case 16:
         regp->xpsr = r;
@@ -568,14 +573,14 @@ stlink_t* stlink_open_usb(const int verbose) {
     ugly_init(verbose);
     sl->backend = &_stlink_usb_backend;
     sl->backend_data = slu;
-    
+
     sl->core_stat = STLINK_CORE_STAT_UNKNOWN;
 
     if (libusb_init(&(slu->libusb_ctx))) {
         WLOG("failed to init libusb context, wrong version of libraries?\n");
         goto on_error;
     }
-    
+
     slu->usb_handle = libusb_open_device_with_vid_pid(slu->libusb_ctx, USB_ST_VID, USB_STLINK_32L_PID);
     if (slu->usb_handle == NULL) {
 		// TODO - free usb context too...
@@ -583,10 +588,10 @@ stlink_t* stlink_open_usb(const int verbose) {
 		WLOG("Couldn't find any ST-Link/V2 devices");
         return NULL;
     }
-    
+
     if (libusb_kernel_driver_active(slu->usb_handle, 0) == 1) {
         int r;
-        
+
         r = libusb_detach_kernel_driver(slu->usb_handle, 0);
         if (r<0) {
             WLOG("libusb_detach_kernel_driver(() error %s\n", strerror(-r));

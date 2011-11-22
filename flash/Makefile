@@ -4,7 +4,7 @@ CFLAGS+=-std=gnu99
 CFLAGS+=-Wall -Wextra
 CFLAGS+=-I../src
 
-LDFLAGS=-L.. -lstlink -lusb-1.0
+LDFLAGS=-L.. -lstlink -lusb-1.0 -DCONFIG_WIN32=$(CONFIG_WIN32)
 
 SRCS=main.c
 OBJS=$(SRCS:.c=.o)

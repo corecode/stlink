@@ -12,6 +12,9 @@ CFLAGS+=-DDEBUG=1
 CFLAGS+=-std=gnu99
 CFLAGS+=-Wall -Wextra
 
+ifeq ("$(CONFIG_WIN32)","1")
+	CFLAGS+=-DCONFIG_WIN32=$(CONFIG_WIN32)
+endif
 
 LIBRARY=libstlink.a
 
@@ -21,7 +24,7 @@ $(LIBRARY): $(OBJS_LIB)
 	@echo "objs are $(OBJS_LIB)"
 	$(AR) -cr $@ $^
 	@echo "done making library"
-	
+
 
 test_sg: test_sg.o $(LIBRARY)
 	@echo "building test_sg"
@@ -44,11 +47,11 @@ clean:
 	rm -rf test_sg*
 	$(MAKE) -C flash clean
 	$(MAKE) -C gdbserver clean
-	
+
 flash:
-	$(MAKE) -C flash
+	$(MAKE) -C flash CONFIG_WIN32="$(CONFIG_WIN32)"
 
 gdbserver:
-	$(MAKE) -C gdbserver CONFIG_USE_LIBSG="$(CONFIG_USE_LIBSG)"
+	$(MAKE) -C gdbserver CONFIG_USE_LIBSG="$(CONFIG_USE_LIBSG)" CONFIG_WIN32="$(CONFIG_WIN32)"
 
 .PHONY: clean all flash gdbserver

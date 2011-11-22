@@ -12,10 +12,22 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <signal.h>
+
+#if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
+  #ifndef _WIN32_WINNT
+    #define _WIN32_WINNT 0x0501
+  #endif
+
+  #include <windows.h>
+  #include <winsock2.h>
+  #undef s_addr // in winsock2.h from MinGW (originally from Wine)
+  #include <ws2tcpip.h>
+#else
+  #include <sys/socket.h>
+  #include <netinet/in.h>
+  #include <arpa/inet.h>
+#endif
 
 #include <stlink-common.h>
 
@@ -49,6 +61,88 @@ typedef struct _st_state_t {
 int serve(stlink_t *sl, int port);
 char* make_memory_map(stlink_t *sl);
 
+
+#if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1) // Windows check
+
+char *strsep(char **stringp, const char *delim) {
+	char *begin, *end;
+
+	begin = *stringp;
+	if(begin == NULL)
+		return NULL;
+
+	if(delim[0] == '\0' || delim[1] == '\0') {
+		char ch = delim[0];
+
+		if(ch == '\0')
+			end = NULL;
+		else {
+			if(*begin == ch)
+				end = begin;
+			else if(*begin == '\0')
+				end = NULL;
+			else
+				end = strchr(begin + 1, ch);
+		}
+	}
+	else
+		end = strpbrk(begin, delim);
+
+	if(end) {
+		*end++ = '\0';
+		*stringp = end;
+	}
+	else
+		*stringp = NULL;
+
+	return begin;
+}
+
+char *strtok_r(char *s, const char *delim, char **last) {
+        char *spanp, *tok;
+        int c, sc;
+
+        if (s == NULL && (s = *last) == NULL)
+                return (NULL);
+
+        /*
+         * Skip (span) leading delimiters (s += strspn(s, delim), sort of).
+         */
+cont:
+        c = *s++;
+        for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
+                if (c == sc)
+                        goto cont;
+        }
+
+        if (c == 0) {           /* no non-delimiter characters */
+                *last = NULL;
+                return (NULL);
+        }
+        tok = s - 1;
+
+        /*
+         * Scan token (scan for delimiters: s += strcspn(s, delim), sort of).
+         * Note that delim must have one NUL; we stop if we see that, too.
+         */
+        for (;;) {
+                c = *s++;
+                spanp = (char *)delim;
+                do {
+                        if ((sc = *spanp++) == c) {
+                                if (c == 0)
+                                        s = NULL;
+                                else
+                                        s[-1] = '\0';
+                                *last = s;
+                                return (tok);
+                        }
+                } while (sc != 0);
+        }
+        /* NOTREACHED */
+}
+
+#endif // Windows check
 
 int parse_options(int argc, char** argv, st_state_t *st) {
     static struct option long_options[] = {
@@ -101,7 +195,11 @@ int parse_options(int argc, char** argv, st_state_t *st) {
             break;
         case 'd':
             if (strlen(optarg) > sizeof (st->devicename)) {
-                fprintf(stderr, "device name too long: %zd\n", strlen(optarg));
+                #if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
+                    fprintf(stderr, "device name too long: %lud\n", (unsigned long)strlen(optarg));
+                #else
+                    fprintf(stderr, "device name too long: %zd\n", strlen(optarg));
+                #endif
             } else {
                 strcpy(st->devicename, optarg);
             }
@@ -245,7 +343,7 @@ char* make_memory_map(stlink_t *sl) {
 }
 
 
-/* 
+/*
  * DWT_COMP0     0xE0001020
  * DWT_MASK0     0xE0001024
  * DWT_FUNCTION0 0xE0001028
@@ -576,24 +674,80 @@ error:
 }
 
 int serve(stlink_t *sl, int port) {
+	unsigned int val = 1;
+
+#if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1) // Windows check
+	WSADATA wsaData;
+	int iResult;
+
+	struct addrinfo *result = NULL;
+
+	/* Initialize Winsock */
+	iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+	if (iResult != 0) {
+		printf("WSAStartup() failed with error: %d\n", iResult);
+		return 1;
+	}
+
+	struct addrinfo hints = { 0 };
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+	hints.ai_flags = AI_PASSIVE;
+
+	/* Resolve the server address and port */
+	int port_str_size = snprintf(0, 0, "%i", port);
+	char port_str[port_str_size];
+	snprintf(port_str, port_str_size, "%i", port);
+
+	iResult = getaddrinfo(NULL, port_str, &hints, &result);
+	if ( iResult != 0 ) {
+		printf("getaddrinfo() failed with error: %d\n", iResult);
+		WSACleanup();
+		return 1;
+	}
+
+	/* Create a SOCKET for connecting to server */
+	SOCKET sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+	if (sock == INVALID_SOCKET) {
+		printf("socket() failed with error: %d\n", WSAGetLastError());
+		freeaddrinfo(result);
+		WSACleanup();
+		return 1;
+	}
+
+	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&val, sizeof(val));
+
+	/* Setup the TCP listening socket */
+	iResult = bind(sock , result->ai_addr, (int)result->ai_addrlen);
+	if (iResult == SOCKET_ERROR) {
+		printf("bind() failed with error: %d\n", WSAGetLastError());
+		freeaddrinfo(result);
+		closesocket(sock);
+		WSACleanup();
+		return 1;
+	}
+
+	freeaddrinfo(result);
+#else // not Windows
+	struct sockaddr_in serv_addr = {0};
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	serv_addr.sin_port = htons(port);
+
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock < 0) {
 		perror("socket");
 		return 1;
 	}
 
-	unsigned int val = 1;
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
-
-	struct sockaddr_in serv_addr = {0};
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	serv_addr.sin_port = htons(port);
 
 	if(bind(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
 		perror("bind");
 		return 1;
 	}
+#endif // Windows check
 
 	if(listen(sock, 5) < 0) {
 		perror("listen");
@@ -667,7 +821,7 @@ int serve(stlink_t *sl, int port) {
 			} else if(!strcmp(queryName, "Xfer")) {
 				char *type, *op, *s_addr, *s_length;
 				char *tok = params;
-				char *annex __attribute__((unused));
+				char *annex; // __attribute__((unused));
 
 				type     = strsep(&tok, ":");
 				op       = strsep(&tok, ":");
@@ -764,7 +918,7 @@ int serve(stlink_t *sl, int port) {
 				char *s_addr, *s_length;
 				char *tok = params;
 
-				s_addr   = strsep(&tok, ",");
+				s_addr = strsep(&tok, ",");
 				s_length = tok;
 
 				unsigned addr = strtoul(s_addr, NULL, 16),
@@ -881,7 +1035,7 @@ int serve(stlink_t *sl, int port) {
 
 			reply = calloc(8 * 16 + 1, 1);
 			for(int i = 0; i < 16; i++)
-				sprintf(&reply[i * 8], "%08x", htonl(regp.r[i]));
+				sprintf(&reply[i * 8], "%08x", (uint32_t)htonl(regp.r[i]));
 
 			break;
 
