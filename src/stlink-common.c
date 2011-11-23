@@ -461,9 +461,15 @@ int stlink_load_device_params(stlink_t *sl) {
 
     ILOG("Device connected is: %s\n", params->description);
     // TODO make note of variable page size here.....
+#if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
+    ILOG("SRAM size: %#x bytes (%d KiB), Flash: %#x bytes (%d KiB) in pages of %lu bytes\n",
+        sl->sram_size, sl->sram_size / 1024, sl->flash_size, sl->flash_size / 1024,
+        (unsigned long)sl->flash_pgsz);
+#else
     ILOG("SRAM size: %#x bytes (%d KiB), Flash: %#x bytes (%d KiB) in pages of %zd bytes\n",
         sl->sram_size, sl->sram_size / 1024, sl->flash_size, sl->flash_size / 1024,
         sl->flash_pgsz);
+#endif
     return 0;
 }
 
