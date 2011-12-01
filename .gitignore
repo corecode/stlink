@@ -7,9 +7,13 @@ doc/tutorial/*.log
 doc/tutorial/*.aux
 libstlink.a
 test_usb
+test_usb.exe
 test_sg
+test_sg.exe
 gdbserver/st-util
+gdbserver/st-util.exe
 flash/flash
+flash/flash.exe
 *.log
 example/*/*.bin
 example/*/*.elf
