@@ -152,11 +152,11 @@ int gdb_check_for_interrupt(int fd) {
 	fd_set rfds;
 	FD_ZERO(&rfds);
 	FD_SET(fd, &rfds);
-	int retval = select(1, &rfds, NULL, NULL, &tv);
-	FD_CLR(fd, &rfds);
+	int retval = select(fd + 1, &rfds, NULL, NULL, &tv);
 
-	if (retval > 0) {
+	if (retval != -1 && FD_ISSET(fd, &rfds)) {
 		char c;
+
 		if (recv(fd, &c, 1, 0) != 1)
 			return -2;
 
