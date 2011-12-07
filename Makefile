@@ -50,9 +50,9 @@ clean:
 	$(MAKE) -C gdbserver clean
 
 flash:
-	$(MAKE) -C flash CONFIG_WIN32="$(CONFIG_WIN32)" ARCH=$(ARCH)
+	$(MAKE) -C flash CONFIG_WIN32="$(CONFIG_WIN32)" ARCH="$(ARCH)"
 
 gdbserver:
-	$(MAKE) -C gdbserver CONFIG_USE_LIBSG="$(CONFIG_USE_LIBSG)" CONFIG_WIN32="$(CONFIG_WIN32)" ARCH=$(ARCH)
+	$(MAKE) -C gdbserver CONFIG_USE_LIBSG="$(CONFIG_USE_LIBSG)" CONFIG_WIN32="$(CONFIG_WIN32)" ARCH="$(ARCH)"
 
 .PHONY: clean all flash gdbserver
