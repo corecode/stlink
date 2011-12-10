@@ -17,4 +17,7 @@ flash/flash.exe
 *.log
 example/*/*.bin
 example/*/*.elf
-example/libs_stm/build/*.a
+example/*/*/*.bin
+example/*/*/*/*.bin
+example/*/*/*.a
+example/*/*/*/*.a
