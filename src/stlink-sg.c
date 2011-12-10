@@ -856,6 +856,7 @@ static stlink_t* stlink_open(const int verbose) {
     if (slsg->usb_handle == NULL) {
         WLOG("Failed to find an stlink v1 by VID:PID\n");
         libusb_close(slsg->usb_handle);
+        libusb_exit(slsg->libusb_ctx);
         free(sl);
         free(slsg);
         return NULL;
@@ -870,6 +871,7 @@ static stlink_t* stlink_open(const int verbose) {
         if (r < 0) {
             WLOG("libusb_detach_kernel_driver(() error %s\n", strerror(-r));
             libusb_close(slsg->usb_handle);
+            libusb_exit(slsg->libusb_ctx);
             free(sl);
             free(slsg);
             return NULL;
@@ -882,6 +884,7 @@ static stlink_t* stlink_open(const int verbose) {
         /* this may fail for a previous configured device */
         WLOG("libusb_get_configuration()\n");
         libusb_close(slsg->usb_handle);
+        libusb_exit(slsg->libusb_ctx);
         free(sl);
         free(slsg);
         return NULL;
@@ -896,6 +899,7 @@ static stlink_t* stlink_open(const int verbose) {
             /* this may fail for a previous configured device */
             WLOG("libusb_set_configuration() failed\n");
             libusb_close(slsg->usb_handle);
+            libusb_exit(slsg->libusb_ctx);
             free(sl);
             free(slsg);
             return NULL;
@@ -905,6 +909,7 @@ static stlink_t* stlink_open(const int verbose) {
     if (libusb_claim_interface(slsg->usb_handle, 0)) {
         WLOG("libusb_claim_interface() failed\n");
         libusb_close(slsg->usb_handle);
+        libusb_exit(slsg->libusb_ctx);
         free(sl);
         free(slsg);
         return NULL;
