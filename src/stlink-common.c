@@ -458,8 +458,8 @@ int stlink_load_device_params(stlink_t *sl) {
     sl->sram_size = params->sram_size;
     sl->sys_base = params->bootrom_base;
     sl->sys_size = params->bootrom_size;
-
-    ILOG("Device connected is: %s\n", params->description);
+    
+    ILOG("Device connected is: %s, id %#x\n", params->description, chip_id);
     // TODO make note of variable page size here.....
 #if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
     ILOG("SRAM size: %#x bytes (%d KiB), Flash: %#x bytes (%d KiB) in pages of %lu bytes\n",
