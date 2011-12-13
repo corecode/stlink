@@ -123,29 +123,27 @@ uint32_t read_uint32(const unsigned char *c, const int pt) {
 }
 
 static uint32_t __attribute__((unused)) read_flash_rdp(stlink_t *sl) {
-    stlink_read_mem32(sl, FLASH_WRPR, sizeof (uint32_t));
-    return read_uint32(sl->q_buf, 0) & 0xff;
+    return stlink_read_debug32(sl, FLASH_WRPR) & 0xff;
 }
 
 static inline uint32_t read_flash_wrpr(stlink_t *sl) {
-    stlink_read_mem32(sl, FLASH_WRPR, sizeof (uint32_t));
-    return read_uint32(sl->q_buf, 0);
+    return stlink_read_debug32(sl, FLASH_WRPR);
 }
 
 static inline uint32_t read_flash_obr(stlink_t *sl) {
-    stlink_read_mem32(sl, FLASH_OBR, sizeof (uint32_t));
-    return read_uint32(sl->q_buf, 0);
+    return stlink_read_debug32(sl, FLASH_OBR);
 }
 
 static inline uint32_t read_flash_cr(stlink_t *sl) {
-	if(sl->chip_id==STM32_CHIPID_F4)
-		stlink_read_mem32(sl, FLASH_F4_CR, sizeof (uint32_t));
+        uint32_t res;
+	if(sl->chip_id==STM32F4_CHIP_ID)
+		res = stlink_read_debug32(sl, FLASH_F4_CR);
 	else
-		stlink_read_mem32(sl, FLASH_CR, sizeof (uint32_t));
+		res = stlink_read_debug32(sl, FLASH_CR);
 #if DEBUG_FLASH
-	fprintf(stdout, "CR:0x%x\n", *(uint32_t*) sl->q_buf);
+	fprintf(stdout, "CR:0x%x\n", res);
 #endif
-	return read_uint32(sl->q_buf, 0);
+	return res;
 }
 
 static inline unsigned int is_flash_locked(stlink_t *sl) {
@@ -162,17 +160,13 @@ static void unlock_flash(stlink_t *sl) {
        an invalid sequence results in a definitive lock of
        the FPEC block until next reset.
      */
-    if(sl->chip_id==STM32_CHIPID_F4) {
-        write_uint32(sl->q_buf, FLASH_KEY1);
-    	stlink_write_mem32(sl, FLASH_F4_KEYR, sizeof (uint32_t));
-		write_uint32(sl->q_buf, FLASH_KEY2);
-		stlink_write_mem32(sl, FLASH_F4_KEYR, sizeof (uint32_t));
+    if(sl->chip_id==STM32F4_CHIP_ID) {
+   	stlink_write_debug32(sl, FLASH_F4_KEYR, FLASH_KEY1);
+		stlink_write_debug32(sl, FLASH_F4_KEYR, FLASH_KEY2);
     }
 	else {
-        write_uint32(sl->q_buf, FLASH_KEY1);
-    	stlink_write_mem32(sl, FLASH_KEYR, sizeof (uint32_t));
-		write_uint32(sl->q_buf, FLASH_KEY2);
-		stlink_write_mem32(sl, FLASH_KEYR, sizeof (uint32_t));
+    	stlink_write_debug32(sl, FLASH_KEYR, FLASH_KEY1);
+		stlink_write_debug32(sl, FLASH_KEYR, FLASH_KEY2);
 	}
 
 }
@@ -194,14 +188,12 @@ static int unlock_flash_if(stlink_t *sl) {
 static void lock_flash(stlink_t *sl) {
     if(sl->chip_id==STM32_CHIPID_F4) {
     	const uint32_t n = read_flash_cr(sl) | (1 << FLASH_F4_CR_LOCK);
-        write_uint32(sl->q_buf, n);
-    	stlink_write_mem32(sl, FLASH_F4_CR, sizeof (uint32_t));
+    	stlink_write_debug32(sl, FLASH_F4_CR, n);
     }
     else {
         /* write to 1 only. reset by hw at unlock sequence */
         const uint32_t n = read_flash_cr(sl) | (1 << FLASH_CR_LOCK);
-        write_uint32(sl->q_buf, n);
-        stlink_write_mem32(sl, FLASH_CR, sizeof (uint32_t));
+        stlink_write_debug32(sl, FLASH_CR, n);
     }
 }
 
@@ -210,47 +202,40 @@ static void set_flash_cr_pg(stlink_t *sl) {
     if(sl->chip_id==STM32_CHIPID_F4) {
 		uint32_t x = read_flash_cr(sl);
 		x |= (1 << FLASH_CR_PG);
-		write_uint32(sl->q_buf, x);
-    	stlink_write_mem32(sl, FLASH_F4_CR, sizeof (uint32_t));
+    	stlink_write_debug32(sl, FLASH_F4_CR, x);
     }
     else {
         const uint32_t n = 1 << FLASH_CR_PG;
-        write_uint32(sl->q_buf, n);
-        stlink_write_mem32(sl, FLASH_CR, sizeof (uint32_t));
+        stlink_write_debug32(sl, FLASH_CR, n);
     }
 }
 
 static void __attribute__((unused)) clear_flash_cr_pg(stlink_t *sl) {
     const uint32_t n = read_flash_cr(sl) & ~(1 << FLASH_CR_PG);
-    write_uint32(sl->q_buf, n);
-    if(sl->chip_id==STM32_CHIPID_F4)
-    	stlink_write_mem32(sl, FLASH_F4_CR, sizeof (uint32_t));
+    if(sl->chip_id==STM32F4_CHIP_ID)
+    	stlink_write_debug32(sl, FLASH_F4_CR, n);
     else
-        stlink_write_mem32(sl, FLASH_CR, sizeof (uint32_t));
+        stlink_write_debug32(sl, FLASH_CR, n);
 }
 
 static void set_flash_cr_per(stlink_t *sl) {
     const uint32_t n = 1 << FLASH_CR_PER;
-    write_uint32(sl->q_buf, n);
-    stlink_write_mem32(sl, FLASH_CR, sizeof (uint32_t));
+    stlink_write_debug32(sl, FLASH_CR, n);
 }
 
 static void __attribute__((unused)) clear_flash_cr_per(stlink_t *sl) {
     const uint32_t n = read_flash_cr(sl) & ~(1 << FLASH_CR_PER);
-    write_uint32(sl->q_buf, n);
-    stlink_write_mem32(sl, FLASH_CR, sizeof (uint32_t));
+    stlink_write_debug32(sl, FLASH_CR, n);
 }
 
 static void set_flash_cr_mer(stlink_t *sl) {
     const uint32_t n = 1 << FLASH_CR_MER;
-    write_uint32(sl->q_buf, n);
-    stlink_write_mem32(sl, FLASH_CR, sizeof (uint32_t));
+    stlink_write_debug32(sl, FLASH_CR, n);
 }
 
 static void __attribute__((unused)) clear_flash_cr_mer(stlink_t *sl) {
     const uint32_t n = read_flash_cr(sl) & ~(1 << FLASH_CR_MER);
-    write_uint32(sl->q_buf, n);
-    stlink_write_mem32(sl, FLASH_CR, sizeof (uint32_t));
+    stlink_write_debug32(sl, FLASH_CR, n);
 }
 
 static void set_flash_cr_strt(stlink_t *sl) {
@@ -258,29 +243,27 @@ static void set_flash_cr_strt(stlink_t *sl) {
 	{
 		uint32_t x = read_flash_cr(sl);
 		x |= (1 << FLASH_F4_CR_STRT);
-		write_uint32(sl->q_buf, x);
-		stlink_write_mem32(sl, FLASH_F4_CR, sizeof (uint32_t));
+		stlink_write_debug32(sl, FLASH_F4_CR, x);
 	}
 	else {
 		/* assume come on the flash_cr_per path */
 	    const uint32_t n = (1 << FLASH_CR_PER) | (1 << FLASH_CR_STRT);
-	    write_uint32(sl->q_buf, n);
-	    stlink_write_mem32(sl, FLASH_CR, sizeof (uint32_t));
+	    stlink_write_debug32(sl, FLASH_CR, n);
 	}
 }
 
 static inline uint32_t read_flash_acr(stlink_t *sl) {
-    stlink_read_mem32(sl, FLASH_ACR, sizeof (uint32_t));
-    return read_uint32(sl->q_buf, 0);
+    return stlink_read_debug32(sl, FLASH_ACR);
 }
 
 static inline uint32_t read_flash_sr(stlink_t *sl) {
-	if(sl->chip_id==STM32_CHIPID_F4)
-		stlink_read_mem32(sl, FLASH_F4_SR, sizeof (uint32_t));
+	uint32_t res;
+	if(sl->chip_id==STM32F4_CHIP_ID)
+		res = stlink_read_debug32(sl, FLASH_F4_SR);
 	else
-		stlink_read_mem32(sl, FLASH_SR, sizeof (uint32_t));
+		res = stlink_read_debug32(sl, FLASH_SR);
     //fprintf(stdout, "SR:0x%x\n", *(uint32_t*) sl->q_buf);
-    return read_uint32(sl->q_buf, 0);
+    return res;
 }
 
 static inline unsigned int is_flash_busy(stlink_t *sl) {
@@ -302,8 +285,7 @@ static inline unsigned int is_flash_eop(stlink_t *sl) {
 
 static void __attribute__((unused)) clear_flash_sr_eop(stlink_t *sl) {
     const uint32_t n = read_flash_sr(sl) & ~(1 << FLASH_SR_EOP);
-    write_uint32(sl->q_buf, n);
-    stlink_write_mem32(sl, FLASH_SR, sizeof (uint32_t));
+    stlink_write_debug32(sl, FLASH_SR, n);
 }
 
 static void __attribute__((unused)) wait_flash_eop(stlink_t *sl) {
@@ -313,8 +295,7 @@ static void __attribute__((unused)) wait_flash_eop(stlink_t *sl) {
 }
 
 static inline void write_flash_ar(stlink_t *sl, uint32_t n) {
-    write_uint32(sl->q_buf, n);
-    stlink_write_mem32(sl, FLASH_AR, sizeof (uint32_t));
+    stlink_write_debug32(sl, FLASH_AR, n);
 }
 
 static inline void write_flash_cr_psiz(stlink_t *sl, uint32_t n) {
@@ -324,8 +305,7 @@ static inline void write_flash_cr_psiz(stlink_t *sl, uint32_t n) {
 #if DEBUG_FLASH
     fprintf(stdout, "PSIZ:0x%x 0x%x\n", x, n);
 #endif
-    write_uint32(sl->q_buf, x);
-    stlink_write_mem32(sl, FLASH_F4_CR, sizeof (uint32_t));
+    stlink_write_debug32(sl, FLASH_F4_CR, x);
 }
 
 
@@ -337,8 +317,7 @@ static inline void write_flash_cr_snb(stlink_t *sl, uint32_t n) {
 #if DEBUG_FLASH
     fprintf(stdout, "SNB:0x%x 0x%x\n", x, n);
 #endif
-    write_uint32(sl->q_buf, x);
-    stlink_write_mem32(sl, FLASH_F4_CR, sizeof (uint32_t));
+    stlink_write_debug32(sl, FLASH_F4_CR, x);
 }
 
 #if 0 /* todo */
@@ -963,14 +942,11 @@ int stlink_erase_flash_page(stlink_t *sl, stm32_addr_t flashaddr)
     uint32_t val;
 
     /* disable pecr protection */
-    write_uint32(sl->q_buf, 0x89abcdef);
-    stlink_write_mem32(sl, STM32L_FLASH_PEKEYR, sizeof(uint32_t));
-    write_uint32(sl->q_buf, 0x02030405);
-    stlink_write_mem32(sl, STM32L_FLASH_PEKEYR, sizeof(uint32_t));
+    stlink_write_debug32(sl, STM32L_FLASH_PEKEYR, 0x89abcdef);
+    stlink_write_debug32(sl, STM32L_FLASH_PEKEYR, 0x02030405);
 
     /* check pecr.pelock is cleared */
-    stlink_read_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
-    val = read_uint32(sl->q_buf, 0);
+    val = stlink_read_debug32(sl, STM32L_FLASH_PECR);
     if (val & (1 << 0))
     {
       WLOG("pecr.pelock not clear (%#x)\n", val);
@@ -978,14 +954,11 @@ int stlink_erase_flash_page(stlink_t *sl, stm32_addr_t flashaddr)
     }
 
     /* unlock program memory */
-    write_uint32(sl->q_buf, 0x8c9daebf);
-    stlink_write_mem32(sl, STM32L_FLASH_PRGKEYR, sizeof(uint32_t));
-    write_uint32(sl->q_buf, 0x13141516);
-    stlink_write_mem32(sl, STM32L_FLASH_PRGKEYR, sizeof(uint32_t));
+    stlink_write_debug32(sl, STM32L_FLASH_PRGKEYR, 0x8c9daebf);
+    stlink_write_debug32(sl, STM32L_FLASH_PRGKEYR, 0x13141516);
 
     /* check pecr.prglock is cleared */
-    stlink_read_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
-    val = read_uint32(sl->q_buf, 0);
+    val = stlink_read_debug32(sl, STM32L_FLASH_PECR);
     if (val & (1 << 1))
     {
       WLOG("pecr.prglock not clear (%#x)\n", val);
@@ -994,14 +967,11 @@ int stlink_erase_flash_page(stlink_t *sl, stm32_addr_t flashaddr)
 
     /* unused: unlock the option byte block */
 #if 0
-    write_uint32(sl->q_buf, 0xfbead9c8);
-    stlink_write_mem32(sl, STM32L_FLASH_OPTKEYR, sizeof(uint32_t));
-    write_uint32(sl->q_buf, 0x24252627);
-    stlink_write_mem32(sl, STM32L_FLASH_OPTKEYR, sizeof(uint32_t));
+    stlink_write_debug32(sl, STM32L_FLASH_OPTKEYR, 0xfbead9c8);
+    stlink_write_debug32(sl, STM32L_FLASH_OPTKEYR, 0x24252627);
 
     /* check pecr.optlock is cleared */
-    stlink_read_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
-    val = read_uint32(sl->q_buf, 0);
+    val = stlink_read_debug32(sl, STM32L_FLASH_PECR);
     if (val & (1 << 2))
     {
       fprintf(stderr, "pecr.prglock not clear\n");
@@ -1011,8 +981,7 @@ int stlink_erase_flash_page(stlink_t *sl, stm32_addr_t flashaddr)
 
     /* set pecr.{erase,prog} */
     val |= (1 << 9) | (1 << 3);
-    write_uint32(sl->q_buf, val);
-    stlink_write_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
+    stlink_write_debug32(sl, STM32L_FLASH_PECR, val);
 
 #if 0 /* fix_to_be_confirmed */
 
@@ -1022,33 +991,27 @@ int stlink_erase_flash_page(stlink_t *sl, stm32_addr_t flashaddr)
        TEXANE: ok, if experience says so and it works for you, we comment
        it. If someone has a problem, please drop an email.
      */
-    while (1)
+    while ((stlink_read_debug32(sl, STM32L_FLASH_SR) & (1 << 0)) != 0)
     {
-      stlink_read_mem32(sl, STM32L_FLASH_SR, sizeof(uint32_t));
-      if ((read_uint32(sl->q_buf, 0) & (1 << 0)) == 0) break ;
     }
 
 #endif /* fix_to_be_confirmed */
 
     /* write 0 to the first word of the page to be erased */
-    memset(sl->q_buf, 0, sizeof(uint32_t));
-    stlink_write_mem32(sl, flashaddr, sizeof(uint32_t));
+    stlink_write_mem32(sl, flashaddr, 0);
 
     /* MP: It is better to wait for clearing the busy bit after issuing
     page erase command, even though PM0062 recommends to wait before it.
     Test shows that a few iterations is performed in the following loop
     before busy bit is cleared.*/
-    while (1)
+    while ((stlink_read_debug32(sl, STM32L_FLASH_SR) & (1 << 0)) != 0)
     {
-      stlink_read_mem32(sl, STM32L_FLASH_SR, sizeof(uint32_t));
-      if ((read_uint32(sl->q_buf, 0) & (1 << 0)) == 0) break;
     }
 
     /* reset lock bits */
-    stlink_read_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
-    val = read_uint32(sl->q_buf, 0) | (1 << 0) | (1 << 1) | (1 << 2);
-    write_uint32(sl->q_buf, val);
-    stlink_write_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
+    val = stlink_read_debug32(sl, STM32L_FLASH_PECR)
+        | (1 << 0) | (1 << 1) | (1 << 2);
+    stlink_write_debug32(sl, STM32L_FLASH_PECR, val);
   }
   else if (sl->core_id == STM32VL_CORE_ID)
   {
@@ -1346,28 +1309,22 @@ int stlink_write_flash(stlink_t *sl, stm32_addr_t addr, uint8_t* base, unsigned 
 #endif /* todo: check write operation */
 
     	/* disable pecr protection */
-    	write_uint32(sl->q_buf, 0x89abcdef);
-    	stlink_write_mem32(sl, STM32L_FLASH_PEKEYR, sizeof(uint32_t));
-    	write_uint32(sl->q_buf, 0x02030405);
-    	stlink_write_mem32(sl, STM32L_FLASH_PEKEYR, sizeof(uint32_t));
+    	stlink_write_debug32(sl, STM32L_FLASH_PEKEYR, 0x89abcdef);
+    	stlink_write_debug32(sl, STM32L_FLASH_PEKEYR, 0x02030405);
 
     	/* check pecr.pelock is cleared */
-    	stlink_read_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
-    	val = read_uint32(sl->q_buf, 0);
+    	val = stlink_read_debug32(sl, STM32L_FLASH_PECR);
     	if (val & (1 << 0)) {
     		fprintf(stderr, "pecr.pelock not clear\n");
     		return -1;
     	}
 
     	/* unlock program memory */
-    	write_uint32(sl->q_buf, 0x8c9daebf);
-    	stlink_write_mem32(sl, STM32L_FLASH_PRGKEYR, sizeof(uint32_t));
-    	write_uint32(sl->q_buf, 0x13141516);
-    	stlink_write_mem32(sl, STM32L_FLASH_PRGKEYR, sizeof(uint32_t));
+    	stlink_write_debug32(sl, STM32L_FLASH_PRGKEYR, 0x8c9daebf);
+    	stlink_write_debug32(sl, STM32L_FLASH_PRGKEYR, 0x13141516);
 
     	/* check pecr.prglock is cleared */
-    	stlink_read_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
-    	val = read_uint32(sl->q_buf, 0);
+    	val = stlink_read_debug32(sl, STM32L_FLASH_PECR);
     	if (val & (1 << 1)) {
     		fprintf(stderr, "pecr.prglock not clear\n");
     		return -1;
@@ -1389,9 +1346,7 @@ int stlink_write_flash(stlink_t *sl, stm32_addr_t addr, uint8_t* base, unsigned 
     		stlink_write_mem32(sl, addr + off, sizeof(uint32_t));
 
     		/* wait for sr.busy to be cleared */
-    		while (1) {
-    			stlink_read_mem32(sl, STM32L_FLASH_SR, sizeof(uint32_t));
-    			if ((read_uint32(sl->q_buf, 0) & (1 << 0)) == 0) break ;
+    		while (stlink_read_debug32(sl, STM32L_FLASH_SR & (1 << 0)) != 0) {
     		}
 
 #if 0 /* todo: check redo write operation */
@@ -1419,10 +1374,9 @@ int stlink_write_flash(stlink_t *sl, stm32_addr_t addr, uint8_t* base, unsigned 
     					page, addr + off, read_uint32(base + off, 0), read_uint32(sl->q_buf, 0));
 
     			/* reset lock bits */
-    			stlink_read_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
-    			val = read_uint32(sl->q_buf, 0) | (1 << 0) | (1 << 1) | (1 << 2);
-    			write_uint32(sl->q_buf, val);
-    			stlink_write_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
+    			val = stlink_read_debug32(sl, STM32L_FLASH_PECR)
+                             | (1 << 0) | (1 << 1) | (1 << 2);
+    			stlink_write_debug32(sl, STM32L_FLASH_PECR, val);
 
     			stlink_erase_flash_page(sl, page);
 
@@ -1435,10 +1389,9 @@ int stlink_write_flash(stlink_t *sl, stm32_addr_t addr, uint8_t* base, unsigned 
 #endif /* todo: check redo write operation */
     	}
     	/* reset lock bits */
-    	stlink_read_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
-    	val = read_uint32(sl->q_buf, 0) | (1 << 0) | (1 << 1) | (1 << 2);
-    	write_uint32(sl->q_buf, val);
-    	stlink_write_mem32(sl, STM32L_FLASH_PECR, sizeof(uint32_t));
+    	val = stlink_read_debug32(sl, STM32L_FLASH_PECR)
+             | (1 << 0) | (1 << 1) | (1 << 2);
+    	stlink_write_debug32(sl, STM32L_FLASH_PECR, val);
     } else if (sl->core_id == STM32VL_CORE_ID) {
         ILOG("Starting Flash write for VL core id\n");
         /* flash loader initialization */
