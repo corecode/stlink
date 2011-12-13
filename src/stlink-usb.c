@@ -710,7 +710,6 @@ stlink_t* stlink_open_usb(const int verbose) {
     }
 
     stlink_version(sl);
-    stlink_load_device_params(sl);
 
     error = 0;
 

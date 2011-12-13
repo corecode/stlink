@@ -122,6 +122,7 @@ int main(int ac, char** av)
     stlink_enter_swd_mode(sl);
 
   stlink_reset(sl);
+  stlink_load_device_params(sl);
 
   printf("Erasing chip entirely...");
   stlink_erase_flash_mass(sl);
