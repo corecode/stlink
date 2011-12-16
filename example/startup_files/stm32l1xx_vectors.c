@@ -13,8 +13,16 @@
 
 /**
  * This should be defined in your other startup files...
+ * TODO - somewhere, this went wrong, why can't I just use the prior Dummy_Handler...
  */
-extern void Dummy_Handler(void);
+//extern void Dummy_Handler(void);
+/*
+void Dummy_Handler(void) __attribute__ ((weak));
+void Dummy_Handler(void) {
+    while (1)
+        ;
+}
+*/
 
 void WWDG_IRQHandler(void) __attribute__((weak, alias("Dummy_Handler")));
 void PVD_IRQHandler(void) __attribute__((weak, alias("Dummy_Handler")));
