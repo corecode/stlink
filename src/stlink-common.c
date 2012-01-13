@@ -921,8 +921,7 @@ uint32_t stlink_calculate_pagesize(stlink_t *sl, uint32_t flashaddr){
  */
 int stlink_erase_flash_page(stlink_t *sl, stm32_addr_t flashaddr)
 {
-  ILOG("Erasing flash page at addr: %#x\n", flashaddr);
-  if (sl->chip_id == STM32_CHIPID_F4)
+  if (sl->chip_id == STM32F4_CHIP_ID)
   {
     /* wait for ongoing op to finish */
     wait_flash_busy(sl);
@@ -1262,9 +1261,12 @@ int stlink_write_flash(stlink_t *sl, stm32_addr_t addr, uint8_t* base, unsigned 
             WLOG("Failed to erase_flash_page(%#zx) == -1\n", addr + off);
             return -1;
         }
+        fprintf(stdout,"\rFlash page at addr: 0x%08lx erased", addr + off);
+        fflush(stdout);
         page_count++;
     }
-    ILOG("Finished erasing %d pages of %d (%#x) bytes\n",
+    fprintf(stdout,"\n");
+    ILOG("Finished erasing %d pages of %d (%#x) bytes\n", 
         page_count, sl->flash_pgsz, sl->flash_pgsz);
 
     if (sl->chip_id == STM32_CHIPID_F4) {
@@ -1349,18 +1351,19 @@ int stlink_write_flash(stlink_t *sl, stm32_addr_t addr, uint8_t* base, unsigned 
     	/* write a word in program memory */
     	for (off = 0; off < len; off += sizeof(uint32_t)) {
     		uint32_t data;
+    		write_uint32((unsigned char*) &data, *(uint32_t*) (base + off));
+    		stlink_write_debug32(sl, addr + off, data);
+
     		if (sl->verbose >= 1) {
     			if ((off & (sl->flash_pgsz - 1)) == 0) {
     				/* show progress. writing procedure is slow
 				   and previous errors are misleading */
     				const uint32_t pgnum = off / sl->flash_pgsz;
     				const uint32_t pgcount = len / sl->flash_pgsz;
-    				fprintf(stdout, "%u pages written out of %u\n", pgnum, pgcount);
+    				fprintf(stdout, "\r%3u/%u pages written", pgnum, pgcount);
+                                fflush(stdout);
     			}
     		}
-
-    		write_uint32((unsigned char*) &data, *(uint32_t*) (base + off));
-    		stlink_write_debug32(sl, addr + off, data);
 
     		/* wait for sr.busy to be cleared */
     		while ((stlink_read_debug32(sl, STM32L_FLASH_SR) & (1 << 0)) != 0) {
@@ -1405,6 +1408,7 @@ int stlink_write_flash(stlink_t *sl, stm32_addr_t addr, uint8_t* base, unsigned 
 
 #endif /* todo: check redo write operation */
     	}
+        fprintf(stdout, "\n");
     	/* reset lock bits */
     	val = stlink_read_debug32(sl, STM32L_FLASH_PECR)
              | (1 << 0) | (1 << 1) | (1 << 2);
