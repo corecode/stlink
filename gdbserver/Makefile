@@ -10,7 +10,7 @@ endif
 
 all: $(PRG)
 
-$(PRG): $(OBJS) ../libstlink.a
+$(PRG): $(OBJS)  ../libstlink.a
 	$(CC) -o $@  $^ $(LDFLAGS)
 
 clean:
