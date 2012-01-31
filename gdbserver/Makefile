@@ -8,6 +8,10 @@ ifeq ($(CONFIG_WIN32), 1)
   LDFLAGS+= -lws2_32 -lwsock32
 endif
 
+# libusb location
+LDFLAGS+=`pkg-config --libs libusb-1.0`
+CFLAGS+=`pkg-config --cflags libusb-1.0`
+
 all: $(PRG)
 
 $(PRG): $(OBJS)  ../libstlink.a

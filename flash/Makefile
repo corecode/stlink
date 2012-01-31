@@ -6,6 +6,11 @@ CFLAGS+=-Wall -Wextra
 CFLAGS+=-I../src
 
 LDFLAGS=$(ARCH) -L.. -lstlink -lusb-1.0 -DCONFIG_WIN32=$(CONFIG_WIN32)
+LDFLAGS=-L.. -lstlink
+
+# libusb location
+LDFLAGS+=`pkg-config --libs libusb-1.0`
+CFLAGS+=`pkg-config --cflags libusb-1.0`
 
 SRCS=main.c
 OBJS=$(SRCS:.c=.o)
