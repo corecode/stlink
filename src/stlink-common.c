@@ -1483,8 +1483,8 @@ int stlink_write_flash(stlink_t *sl, stm32_addr_t addr, uint8_t* base, unsigned 
 		    fprintf(stdout, "\r");
 
 		if ((off % sl->flash_pgsz) > (sl->flash_pgsz -5)) {
-		    fprintf(stdout, "\r%3u/%u pages written", 
-			    (unsigned)(off/sl->flash_pgsz), (unsigned)(len/sl->flash_pgsz));
+		    fprintf(stdout, "\r%3zd/%3zd pages written",
+			    off/sl->flash_pgsz, len/sl->flash_pgsz);
 		    fflush(stdout);
 		}
 
