@@ -109,17 +109,6 @@ extern "C" {
 #define STM32_FLASH_BASE 0x08000000
 #define STM32_SRAM_BASE 0x20000000
 
-/*
- * Chip IDs are explained in the appropriate programming manual for the
- * DBGMCU_IDCODE register (0xE0042000)
- */
-#define CORE_M3_R1 0x1BA00477
-#define CORE_M3_R2 0x4BA00477
-#define CORE_M4_R0 0x2BA01477
-
-/* using chip id for F4 ident, since core id is same as F1 */
-#define STM32F4_CHIP_ID 0x413
-
 /* Cortex™-M3 Technical Reference Manual */
 /* Debug Halting Control and Status Register */
 #define DHCSR 0xe000edf0

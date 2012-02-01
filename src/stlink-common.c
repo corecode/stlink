@@ -138,7 +138,7 @@ static inline uint32_t read_flash_obr(stlink_t *sl) {
 
 static inline uint32_t read_flash_cr(stlink_t *sl) {
         uint32_t res;
-	if(sl->chip_id==STM32F4_CHIP_ID)
+	if(sl->chip_id==STM32_CHIPID_F4)
 		res = stlink_read_debug32(sl, FLASH_F4_CR);
 	else
 		res = stlink_read_debug32(sl, FLASH_CR);
@@ -162,7 +162,7 @@ static void unlock_flash(stlink_t *sl) {
        an invalid sequence results in a definitive lock of
        the FPEC block until next reset.
      */
-    if(sl->chip_id==STM32F4_CHIP_ID) {
+    if(sl->chip_id==STM32_CHIPID_F4) {
    	stlink_write_debug32(sl, FLASH_F4_KEYR, FLASH_KEY1);
 		stlink_write_debug32(sl, FLASH_F4_KEYR, FLASH_KEY2);
     }
@@ -214,7 +214,7 @@ static void set_flash_cr_pg(stlink_t *sl) {
 
 static void __attribute__((unused)) clear_flash_cr_pg(stlink_t *sl) {
     const uint32_t n = read_flash_cr(sl) & ~(1 << FLASH_CR_PG);
-    if(sl->chip_id==STM32F4_CHIP_ID)
+    if(sl->chip_id==STM32_CHIPID_F4)
     	stlink_write_debug32(sl, FLASH_F4_CR, n);
     else
         stlink_write_debug32(sl, FLASH_CR, n);
@@ -231,7 +231,7 @@ static void __attribute__((unused)) clear_flash_cr_per(stlink_t *sl) {
 }
 
 static void set_flash_cr_mer(stlink_t *sl) {
-    if(sl->chip_id == STM32F4_CHIP_ID)
+    if(sl->chip_id == STM32_CHIPID_F4)
         stlink_write_debug32(sl, FLASH_F4_CR,
                              stlink_read_debug32(sl, FLASH_F4_CR) | (1 << FLASH_CR_MER));
     else 
@@ -240,7 +240,7 @@ static void set_flash_cr_mer(stlink_t *sl) {
 }
 
 static void __attribute__((unused)) clear_flash_cr_mer(stlink_t *sl) {
-    if(sl->chip_id == STM32F4_CHIP_ID)
+    if(sl->chip_id == STM32_CHIPID_F4)
         stlink_write_debug32(sl, FLASH_F4_CR,
                              stlink_read_debug32(sl, FLASH_F4_CR) & ~(1 << FLASH_CR_MER));
     else 
@@ -268,7 +268,7 @@ static inline uint32_t read_flash_acr(stlink_t *sl) {
 
 static inline uint32_t read_flash_sr(stlink_t *sl) {
 	uint32_t res;
-	if(sl->chip_id==STM32F4_CHIP_ID)
+	if(sl->chip_id==STM32_CHIPID_F4)
 		res = stlink_read_debug32(sl, FLASH_F4_SR);
 	else
 		res = stlink_read_debug32(sl, FLASH_SR);
@@ -972,7 +972,7 @@ uint32_t stlink_calculate_pagesize(stlink_t *sl, uint32_t flashaddr){
  */
 int stlink_erase_flash_page(stlink_t *sl, stm32_addr_t flashaddr)
 {
-  if (sl->chip_id == STM32F4_CHIP_ID)
+  if (sl->chip_id == STM32_CHIPID_F4)
   {
     /* wait for ongoing op to finish */
     wait_flash_busy(sl);
