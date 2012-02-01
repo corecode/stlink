@@ -844,7 +844,7 @@ int serve(stlink_t *sl, int port) {
 				}
 				
 
-				if (!strncmp(params,"72657375",8)) {// resume
+				if (!strncmp(params,"7265",4)) {// resume
 #ifdef DEBUG
 					printf("Rcmd: resume\n");
 #endif
@@ -859,7 +859,7 @@ int serve(stlink_t *sl, int port) {
 #ifdef DEBUG
 					printf("Rcmd: halt\n");
 #endif
-				} else if (!strncmp(params,"72657365",8)) { //reset
+				} else if (!strncmp(params,"7265",4)) { //reset
 					reply = strdup("OK");
 					
 					stlink_force_debug(sl);
