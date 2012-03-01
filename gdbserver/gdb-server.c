@@ -653,6 +653,7 @@ error:
 }
 
 int serve(stlink_t *sl, int port) {
+	int error_code = 0;
 	unsigned int val = 1;
 
 #if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1) // Windows check
@@ -724,13 +725,21 @@ int serve(stlink_t *sl, int port) {
 
 	if(bind(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
 		perror("bind");
+        close(sock);
 		return 1;
 	}
 #endif // Windows check
 
+#if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
+    int client = INVALID_SOCKET;
+#else
+    int client = -1;
+#endif
+
 	if(listen(sock, 5) < 0) {
 		perror("listen");
-		return 1;
+        error_code = 1;
+        goto close_server_socket;
 	}
 
 	stlink_force_debug(sl);
@@ -740,14 +749,21 @@ int serve(stlink_t *sl, int port) {
 
 	printf("Listening at *:%d...\n", port);
 
-	int client = accept(sock, NULL, NULL);
+	client = accept(sock, NULL, NULL);
 	signal (SIGINT, SIG_DFL);
 	if(client < 0) {
 		perror("accept");
-		return 1;
+        error_code = 1;
+        goto close_server_socket;
 	}
 
+#if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
+	closesocket(sock);
+    sock = INVALID_SOCKET;
+#else
 	close(sock);
+    sock = -1;
+#endif
 
 	printf("GDB connected.\n");
 
@@ -763,7 +779,8 @@ int serve(stlink_t *sl, int port) {
 		int status = gdb_recv_packet(client, &packet);
 		if(status < 0) {
 			fprintf(stderr, "cannot recv: %d\n", status);
-			return 1;
+			fprintf(stderr, "closing connection\n");
+			goto close_client_socket;
 		}
 
 		#ifdef DEBUG
@@ -975,7 +992,8 @@ int serve(stlink_t *sl, int port) {
 				int status = gdb_check_for_interrupt(client);
 				if(status < 0) {
 					fprintf(stderr, "cannot check for int: %d\n", status);
-					return 1;
+                    error_code = 1;
+					goto close_client_socket;
 				}
 
 				if(status == 1) {
@@ -1220,7 +1238,8 @@ int serve(stlink_t *sl, int port) {
 			int result = gdb_send_packet(client, reply);
 			if(result != 0) {
 				fprintf(stderr, "cannot send: %d\n", result);
-				return 1;
+				error_code = 1;
+                goto close_client_socket;
 			}
 
 			free(reply);
@@ -1229,5 +1248,20 @@ int serve(stlink_t *sl, int port) {
 		free(packet);
 	}
 
-	return 0;
+close_server_socket:
+#if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
+	closesocket(sock);
+#else
+	close(sock);
+#endif
+
+close_client_socket:
+#if defined(CONFIG_WIN32) && (CONFIG_WIN32 +1 > 1)
+	closesocket(client);
+	WSACleanup();
+#else
+	close(client);
+#endif
+
+	return error_code;
 }
