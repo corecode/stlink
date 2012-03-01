@@ -5,8 +5,7 @@ CFLAGS+=-std=gnu99
 CFLAGS+=-Wall -Wextra
 CFLAGS+=-I../src
 
-LDFLAGS=$(ARCH) -L.. -lstlink -lusb-1.0 -DCONFIG_WIN32=$(CONFIG_WIN32)
-LDFLAGS=-L.. -lstlink
+LDFLAGS=$(ARCH) -L.. -lstlink -DCONFIG_WIN32=$(CONFIG_WIN32)
 
 # libusb location
 LDFLAGS+=`pkg-config --libs libusb-1.0`
