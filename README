@@ -103,6 +103,13 @@ If you would link your executable to 0x08000000 and then do
 (gdb) load firmware.elf
 then it would be written to the memory.
 
+Compiling for Windows
+=====================
+
+make CONFIG_WIN32=1
+
+Works both in MinGW and Cygwin. Of course, you must have libusb-1.0 installed on these. Also you might need to install WinUSB driver for ST-Link v1, I suggest using Zadig for that: http://sourceforge.net/projects/libwdi/files/zadig/
+
 
 FAQ
 ===
