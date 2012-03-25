@@ -1602,6 +1602,9 @@ int stlink_fwrite_flash(stlink_t *sl, const char* path, stm32_addr_t addr) {
 	    num_empty = 0;
     }
     if(num_empty != 0) {
+	/* Don't ignore trailing bytes if it would make the data unaligned. */
+	if ((mf.len ^ num_empty) & 1)
+	    num_empty--;
 	ILOG("Ignoring %d bytes of Zeros at end of file\n",num_empty);
 	mf.len -= num_empty;
     }
